@@ -184,7 +184,7 @@
   }));
   const KONAMI = ['arrowup', 'arrowup', 'arrowdown', 'arrowdown', 'arrowleft', 'arrowright', 'arrowleft', 'arrowright', 'b', 'a'];
   let kpos = 0;
-  window.dcs = { debug() { squash('console'); return T('bug #12 aplastado. Buen instinto.', 'bug #12 squashed. Good instincts.'); } };
+  window.dcs = { debug() { squash('console'); return T('bug #12 aplastado. Bien ahí.', 'bug #12 squashed. Good job.'); } };
   console.log('%c DC %c ' + T('¿Abriendo la consola? Buen instinto. Hay un bug escondido aquí: ejecuta dcs.debug()', 'Opening the console? Good instincts. There is a bug hiding here: run dcs.debug()'),
     'background:#8c5bc4;color:#fff;padding:2px 6px;font-weight:700', 'color:#b88af1');
 

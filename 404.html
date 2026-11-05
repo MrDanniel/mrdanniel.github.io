@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#151515">
+<meta name="robots" content="noindex, nofollow">
+<title>404 — Daniel C. Studio</title>
+<link rel="icon" href="/assets/images/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/images/apple-touch-icon.png">
+<style>
+@font-face{font-family:Unbounded;src:url(/assets/fonts/unbounded-latin-700-normal.woff2) format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"JetBrains Mono";src:url(/assets/fonts/jetbrains-mono-latin-400-normal.woff2) format("woff2");font-display:swap}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#151515;color:#f3eff8;font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+body{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px;position:relative;overflow:hidden;-webkit-user-select:none;user-select:none}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:radial-gradient(60vw 50vh at 85% 0,rgba(140,91,196,.25),transparent 70%),linear-gradient(rgba(206,177,239,.12) 1px,transparent 1px) 0 0/80px 80px,linear-gradient(90deg,rgba(206,177,239,.12) 1px,transparent 1px) 0 0/80px 80px}
+main{width:min(860px,100%);display:grid;gap:18px}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
+h1{margin:0;font:700 clamp(3.2rem,14vw,7rem)/.9 Unbounded,sans-serif;letter-spacing:-.06em;background:linear-gradient(100deg,#d3b7ff,#8c5bc4);-webkit-background-clip:text;background-clip:text;color:transparent}
+p{margin:0;color:#a9a1b3;max-width:46ch}
+.hud{font:400 13px/1.4 "JetBrains Mono",ui-monospace,monospace;color:#d3b7ff;text-align:right}
+.hud small{display:block;color:#7a7285}
+.stage{position:relative;border:1px solid rgba(206,177,239,.34);background:rgba(10,8,14,.6)}
+.stage::before,.stage::after{content:"";position:absolute;width:16px;height:16px;border:2px solid #d3b7ff;pointer-events:none}
+.stage::before{left:-2px;top:-2px;border-right:0;border-bottom:0}.stage::after{right:-2px;bottom:-2px;border-left:0;border-top:0}
+canvas{display:block;width:100%;height:auto;aspect-ratio:800/240;touch-action:manipulation;cursor:pointer}
+.msg{position:absolute;inset:0;display:none;place-content:center;justify-items:center;gap:8px;text-align:center;background:rgba(21,21,21,.8);padding:16px}
+.msg.on{display:grid}
+.msg b{font:700 clamp(1.4rem,5vw,2.4rem)/1 Unbounded,sans-serif;color:#d3b7ff}
+.msg span{font:400 13px "JetBrains Mono",monospace;color:#a9a1b3}
+.msg i{display:block;width:180px;height:3px;background:rgba(206,177,239,.2);overflow:hidden;position:relative}
+.msg i::after{content:"";position:absolute;inset:0;background:#d3b7ff;transform:scaleX(0);transform-origin:0 50%;animation:go 1.9s linear forwards}
+@keyframes go{to{transform:scaleX(1)}}
+.foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font:400 12.5px "JetBrains Mono",monospace;color:#7a7285}
+a{color:#d3b7ff;text-underline-offset:3px}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div><h1>404</h1><p>Esta ruta no existe. Mientras buscas la salida, esquiva lo que venga: si fallas, te llevo de vuelta al inicio.</p></div>
+    <div class="hud"><span id="score">0 m</span><small id="rec">récord —</small></div>
+  </div>
+  <div class="stage">
+    <canvas id="cv" width="800" height="240" aria-label="Minijuego: salta los obstáculos con toque, clic, Espacio o flecha arriba"></canvas>
+    <div class="msg" id="msg"><b id="mt">Crash</b><span id="ms"></span><i></i><a href="/">Ir al inicio ahora</a></div>
+  </div>
+  <div class="foot"><span>Toca, haz clic o pulsa Espacio para saltar.</span><a href="/">← Volver al inicio</a></div>
+</main>
+<script>
+(() => {
+  'use strict';
+  const EN = /^en/i.test(navigator.language || '');
+  const cv = document.getElementById('cv'), msg = document.getElementById('msg');
+  if (EN) {
+    document.documentElement.lang = 'en';
+    document.querySelector('.top p').textContent = 'This route does not exist. While you look for the exit, dodge what comes: if you fail, I will send you back home.';
+    document.querySelector('.foot span').textContent = 'Tap, click or press Space to jump.';
+    document.querySelector('.foot a').textContent = '← Back home';
+    msg.querySelector('a').textContent = 'Go home now';
+  }
+  const dpr = Math.min(window.devicePixelRatio || 1, 2), W = 800, H = 240, GY = 196;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const KEY = 'dcs-fragments-v2';
+  let store = { found: [], bugs: [], records: {}, stats: {}, accent: 'violeta' };
+  try { const j = JSON.parse(localStorage.getItem(KEY) || 'null'); if (j && typeof j === 'object') Object.assign(store, j); } catch (e) {}
+  if (!Array.isArray(store.found)) store.found = []; if (!store.records) store.records = {}; if (!store.stats) store.stats = {};
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} };
+  const rec = document.getElementById('rec'), sc = document.getElementById('score');
+  const showRec = () => { rec.textContent = store.records.crash != null ? (EN ? 'best ' : 'récord ') + store.records.crash + ' m' : (EN ? 'best —' : 'récord —'); };
+  showRec();
+
+  // Sonido solo si la persona lo activó en el sitio principal
+  let audio = false, ac = null;
+  try { audio = localStorage.getItem('dcs-audio') === 'on'; } catch (e) {}
+  const beep = (f, d, type, v, slide) => {
+    if (!audio) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume();
+      const t = ac.currentTime, o = ac.createOscillator(), gn = ac.createGain();
+      o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, f * slide), t + d);
+      gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(v, t + .008); gn.gain.exponentialRampToValueAtTime(.0001, t + d);
+      o.connect(gn); gn.connect(ac.destination); o.start(t); o.stop(t + d + .02);
+    } catch (e) {}
+  };
+
+  const P = { x: 90, y: GY, vy: 0, w: 34, h: 34 };
+  let obs = [], dist = 0, speed = 300, next = 500, off = 0, dead = false, ground = true, t = 0;
+  const jump = () => {
+    if (dead) return;
+    if (ground) { P.vy = -640; ground = false; beep(520, .12, 'square', .03, 1.8); }
+  };
+  addEventListener('keydown', e => { if ([' ', 'ArrowUp', 'w', 'W'].includes(e.key)) { e.preventDefault(); if (!e.repeat) jump(); } });
+  cv.addEventListener('pointerdown', e => { e.preventDefault(); jump(); });
+
+  function spawn() {
+    const kind = Math.random() < .35 ? 'wide' : Math.random() < .5 ? 'bug' : 'tall';
+    const o = kind === 'wide' ? { w: 62, h: 30 } : kind === 'bug' ? { w: 32, h: 28 } : { w: 26, h: 52 };
+    obs.push({ x: W + 20, kind, ...o });
+    next = dist + 380 + Math.random() * 360 + speed * .35;
+  }
+  function crash() {
+    dead = true; beep(200, .35, 'sawtooth', .05, .4);
+    const m = Math.floor(dist / 10);
+    if (!store.found.includes('crash')) store.found.push('crash');
+    store.stats.crash = store.stats.crash || {}; store.stats.crash.plays = (store.stats.crash.plays || 0) + 1;
+    let isNew = false;
+    if (m > 0 && (store.records.crash == null || m > store.records.crash)) { store.records.crash = m; isNew = true; }
+    save(); showRec();
+    document.getElementById('mt').textContent = isNew ? (EN ? 'New record' : 'Nuevo récord') : 'Crash';
+    document.getElementById('ms').textContent = m + (EN ? ' m · heading back home…' : ' m · volviendo al inicio…');
+    msg.classList.add('on');
+    setTimeout(() => location.replace('/'), 2000);
+  }
+  function drawBug(x, y, w, h) {
+    g.fillStyle = '#df9de7'; g.beginPath(); g.ellipse(x + w / 2, y + h * .6, w * .36, h * .4, 0, 0, 6.283); g.fill();
+    g.strokeStyle = '#df9de7'; g.lineWidth = 2; g.beginPath();
+    for (const s of [-1, 1]) for (const k of [.35, .6, .85]) { g.moveTo(x + w / 2, y + h * k); g.lineTo(x + w / 2 + s * w * .55, y + h * (k - .15 + (k > .6 ? .2 : 0))); }
+    g.stroke(); g.fillStyle = '#151515'; g.fillRect(x + w / 2 - 5, y + h * .45, 3, 3); g.fillRect(x + w / 2 + 2, y + h * .45, 3, 3);
+  }
+  function draw() {
+    g.clearRect(0, 0, W, H);
+    g.strokeStyle = 'rgba(206,177,239,.1)'; g.lineWidth = 1;
+    for (let y = 40; y < GY; y += 40) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+    g.strokeStyle = '#d3b7ff'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, GY); g.lineTo(W, GY); g.stroke();
+    g.strokeStyle = 'rgba(206,177,239,.35)'; g.lineWidth = 1;
+    for (let x = -off; x < W; x += 36) { g.beginPath(); g.moveTo(x, GY + 4); g.lineTo(x - 12, H); g.stroke(); }
+    for (const o of obs) {
+      const y = GY - o.h;
+      if (o.kind === 'bug') drawBug(o.x, y, o.w, o.h);
+      else {
+        g.fillStyle = 'rgba(140,91,196,.5)'; g.strokeStyle = '#b88af1'; g.lineWidth = 2; g.fillRect(o.x, y, o.w, o.h); g.strokeRect(o.x, y, o.w, o.h);
+        g.fillStyle = '#d3b7ff'; g.font = '700 11px "JetBrains Mono",monospace'; g.textAlign = 'center'; g.fillText(o.kind === 'wide' ? '404' : '!', o.x + o.w / 2, y + o.h / 2 + 4);
+      }
+    }
+    const sq = ground ? 0 : Math.min(.2, Math.abs(P.vy) / 3000);
+    g.save(); g.translate(P.x + P.w / 2, P.y - P.h / 2); g.scale(1 - sq, 1 + sq);
+    const gr = g.createLinearGradient(-17, -17, 17, 17); gr.addColorStop(0, '#d3b7ff'); gr.addColorStop(1, '#623b88');
+    g.fillStyle = gr; g.fillRect(-17, -17, 34, 34);
+    g.fillStyle = '#21172b'; g.font = '700 14px Unbounded,sans-serif'; g.textAlign = 'center'; g.fillText('DC', 0, 5);
+    g.fillStyle = '#f0ddff'; g.fillRect(11, -17, 6, 6);
+    g.restore();
+  }
+  let last = 0;
+  function frame(ts) {
+    if (dead) { draw(); return; }
+    if (!last) last = ts;
+    const dt = Math.min(40, ts - last) / 1000; last = ts; t += dt;
+    speed = 300 + Math.min(320, dist / 40);
+    dist += speed * dt; off = (off + speed * dt) % 36;
+    P.vy += 1900 * dt; P.y += P.vy * dt;
+    if (P.y >= GY) { P.y = GY; P.vy = 0; ground = true; }
+    if (dist > next) spawn();
+    for (const o of obs) {
+      o.x -= speed * dt;
+      const px = P.x + 4, pw = P.w - 8, py = P.y - P.h + 4;
+      if (px < o.x + o.w - 4 && px + pw > o.x + 4 && P.y - 4 > GY - o.h && py < GY) { crash(); break; }
+    }
+    obs = obs.filter(o => o.x > -80);
+    sc.textContent = Math.floor(dist / 10) + ' m';
+    draw();
+    requestAnimationFrame(frame);
+  }
+  draw();
+  setTimeout(() => requestAnimationFrame(frame), 500);
+  document.addEventListener('visibilitychange', () => { last = 0; });
+})();
+</script>
+</body>
+</html>

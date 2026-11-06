@@ -37,7 +37,9 @@
     const c = getComputedStyle(root);
     return ['--lav', '--vh', '--pink', '--v'].map(v => c.getPropertyValue(v).trim());
   };
-  /* ───────── Sonido: sintetizado, sin audio externo, apagado por defecto ───────── */
+
+  
+/* ───────── Sonido: sintetizado, sin audio externo, apagado por defecto ───────── */
   let on = false, ac = null, master = null, noiseBuf = null;
   try { on = localStorage.getItem('dcs-audio') === 'on'; } catch { /* ignorar */ }
   const ensure = () => {
@@ -97,7 +99,7 @@
     play(name, a) { if (!on) return; try { (presets[name] || presets.click)(a); } catch { /* el audio nunca es imprescindible */ } },
     set(v) {
       on = !!v;
-      try { localStorage.setItem('dcs-audio', on ? 'on' : 'off'); } catch { /* ignorar */ }
+      try { localStorage.setItem('dcs-audio', on ? 'on' : 'off'); } catch { /* ignorار */ }
       syncAudio();
       if (on) { ensure(); presets.toggle(); } else if (ac) ac.suspend().catch(() => {});
     }
@@ -113,7 +115,7 @@
     return ac.createPeriodicWave(re, im);
   })();
 
-  const chipNote = (f, ch, t, dur, v, bendTarget = null) => {
+  const chipNote = (f, ch, t, dur, v, bendPeak = null) => {
     const o = ac.createOscillator(), g = ac.createGain();
     let baseFreq = f;
 
@@ -131,21 +133,23 @@
       g.gain.setValueAtTime(v * .42, t + dur * .75); 
     }
 
-    // Aplicar bend release si se especifica
-    if (bendTarget) {
-      const peakTime = t + (dur * 0.35);
-      const peakFreq = ch === 'tri' ? quant(bendTarget[0], true) : quant(bendTarget[0], false);
-      const endFreq = ch === 'tri' ? quant(bendTarget[1], true) : quant(bendTarget[1], false);
+    // Efecto "turaruuuuuu": baja (tu-ra), vuelve rápido (ru) y se sostiene largo en la nota original (uuuuuu)
+    if (bendPeak && ch !== 'tri') {
+      const dropTime = t + (dur * 0.25); // El descenso ocurre rápido al inicio (tu-ra)
+      const returnTime = t + (dur * 0.38); // Vuelve al A4 de golpe (ru)
+      const peakFreq = quant(bendPeak, false);
+      const origFreq = quant(f, false);
       
-      o.frequency.exponentialRampToValueAtTime(peakFreq, peakTime);
-      o.frequency.exponentialRampToValueAtTime(endFreq, t + dur);
+      o.frequency.exponentialRampToValueAtTime(peakFreq, dropTime);
+      o.frequency.exponentialRampToValueAtTime(origFreq, returnTime);
+      // El resto del tiempo (desde returnTime hasta t + dur) se queda sostenido en origFreq de forma estable
     }
 
     g.gain.setValueAtTime(0, t + dur);
     o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .02);
   };
 
-  // Acordes de Contra con el tiempo marcado en segundos (y bend añadido en el 5to)
+  // Acordes de Contra con el tiempo marcado en segundos
   const KONAMI_SCORE = [
     { n: [174.61, 261.63, 349.23], at: 0.00, d: 0.60 }, 
     { n: [164.81, 440, 523.25],    at: 0.56, d: 0.55 }, 
@@ -154,8 +158,8 @@
     { 
       n: [110, 329.63, 440],       
       at: 2.20, 
-      d: 0.80, 
-      bend: [116.54, 110] // Sube y regresa al tono original
+      d: 0.90, 
+      bend: [null, 293.66, 392] // [release de E4, y A4 haciendo el "tururuuuuuu"]
     },
     { n: [73.42, 587.33],           at: 3.05, d: 0.50 },
     { n: [110, 659.25],             at: 3.52, d: 1.15 }
@@ -169,8 +173,8 @@
     KONAMI_SCORE.forEach(c => {
       c.n.forEach((f, k) => {
         const channel = k === 0 ? 'tri' : (c.n.length === 3 && k === 1 ? 'p2' : 'p1');
-        const bend = (k === 0 && c.bend) ? c.bend : null;
-        chipNote(f, channel, t0 + c.at, c.d, .045, bend);
+        const bendPeak = (c.bend && c.bend[k]) ? c.bend[k] : null;
+        chipNote(f, channel, t0 + c.at, c.d, .045, bendPeak);
       });
     });
     return 2300;
@@ -187,11 +191,12 @@
     $$('[data-audio-toggle]').forEach(b => {
       b.setAttribute('aria-pressed', String(on));
       b.setAttribute('aria-label', on ? T('Desactivar efectos de sonido', 'Turn sound effects off') : T('Activar efectos de sonido', 'Turn sound effects on'));
-      const l = $('.audio-label', b); if (l) l.textContent = on ? T('Sonido on', 'Sound on') : T('Sonido off', 'Sonido off');
+      const l = $('.audio-label', b); if (l) l.textContent = on ? T('Sonido on', 'Sound on') : T('Sonido off', 'Sound off');
     });
   }
   syncAudio();
   document.addEventListener('visibilitychange', () => { if (ac) (document.hidden ? ac.suspend() : on && ac.resume()).catch?.(() => {}); });
+
 
   /* ───────── Partículas (un único canvas, el bucle se detiene si no hay nada) ───────── */
   const fx = (() => {

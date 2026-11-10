@@ -649,16 +649,13 @@ DCArcade.define('boss', ctx => {
       if (tr.length > 2) {
         g.save(); g.globalAlpha = .5; g.lineWidth = 3 * u; g.lineCap = 'round'; g.lineJoin = 'round';
         const nor = tr.map((p, i) => { const a = tr[Math.max(0, i - 1)], b = tr[Math.min(tr.length - 1, i + 1)], dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1; return { x: -dy / l, y: dx / l }; });
-        RAINBOW.forEach((col, k) => {
-           const o = (k - 2.5) * 3.1 * u; g.strokeStyle = col;
-           for (let i = 0; i < tr.length - 1; i++) {
-             const t = i / (tr.length - 2), w = Math.sin(Math.PI * t);   // 0 en las puntas, 1 en el centro
-             g.lineWidth = Math.max(.4, 3.4 * u * w);
-             g.beginPath();
-             g.moveTo(tr[i].x + nor[i].x * o * w, tr[i].y + 8 * u + nor[i].y * o * w);
-             g.lineTo(tr[i + 1].x + nor[i + 1].x * o * w, tr[i + 1].y + 8 * u + nor[i + 1].y * o * w);
-             g.stroke();
-           }
+        RAINBOW.forEach((col, k) => {   // trazo: fino al nacer y al terminar, grueso en el centro
+          const o = (k - 2.5) * 3.1 * u; g.strokeStyle = col;
+          for (let i = 0; i < tr.length - 1; i++) {
+            const t = i / (tr.length - 2), w = Math.sin(Math.PI * t);
+            g.lineWidth = Math.max(.5, 3.4 * u * w);
+            g.beginPath(); g.moveTo(tr[i].x + nor[i].x * o * w, tr[i].y + 8 * u + nor[i].y * o * w); g.lineTo(tr[i + 1].x + nor[i + 1].x * o * w, tr[i + 1].y + 8 * u + nor[i + 1].y * o * w); g.stroke();
+          }
         });
         g.restore();
       }

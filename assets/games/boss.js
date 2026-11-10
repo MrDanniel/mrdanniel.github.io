@@ -644,16 +644,16 @@ DCArcade.define('boss', ctx => {
   }
   function drawShip() {
     if (state === 'dead' || state === 'win') return; if (P.inv > 0 && Math.floor(T * 14) % 2 === 0) return;
-    if (calm) {   // estela arcoíris corta y translúcida (50 %)
+    {   // estela corta y translúcida (50 %): arcoíris en modo fácil; blanca con una línea morada en modo normal
       const tr = P.tr || (P.tr = []); tr.unshift({ x: P.x, y: P.y }); if (tr.length > 15) tr.pop();
       if (tr.length > 2) {
         g.save(); g.globalAlpha = .5; g.lineWidth = 3 * u; g.lineCap = 'round'; g.lineJoin = 'round';
         const nor = tr.map((p, i) => { const a = tr[Math.max(0, i - 1)], b = tr[Math.min(tr.length - 1, i + 1)], dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1; return { x: -dy / l, y: dx / l }; });
-        RAINBOW.forEach((col, k) => {   // trazo: fino al nacer y al terminar, grueso en el centro
-          const o = (k - 2.5) * 3.1 * u; g.strokeStyle = col;
+        (calm ? RAINBOW.map((c, k) => [c, (k - 2.5) * 3.1, 1]) : [['#ffffff', 0, 1.7], [C.main, 0, .5]]).forEach(([col, off, wm]) => {   // trazo: fino al nacer y al terminar, grueso en el centro
+          const o = off * u; g.strokeStyle = col;
           for (let i = 0; i < tr.length - 1; i++) {
             const t = i / (tr.length - 2), w = Math.sin(Math.PI * t);
-            g.lineWidth = Math.max(.5, 3.4 * u * w);
+            g.lineWidth = Math.max(.5, 3.4 * wm * u * w);
             g.beginPath(); g.moveTo(tr[i].x + nor[i].x * o * w, tr[i].y + 8 * u + nor[i].y * o * w); g.lineTo(tr[i + 1].x + nor[i + 1].x * o * w, tr[i + 1].y + 8 * u + nor[i + 1].y * o * w); g.stroke();
           }
         });
